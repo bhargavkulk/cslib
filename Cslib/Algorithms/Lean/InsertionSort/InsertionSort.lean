@@ -17,7 +17,7 @@ public import Mathlib.Data.Nat.Log
 # Insertion Sort on a list
 
 In this file we introduce `insert` and `insertionSort` algorithms that returns a time monad
-over the list `TimeM (List α)`. The time complexity of `insertionSort` is the number of comparisons.
+over the list `TimeM ℕ (List α)`. The time complexity of `insertionSort` is the number of comparisons.
 
 --
 ## Main results
@@ -34,11 +34,11 @@ namespace Cslib.Algorithms.Lean.TimeM
 variable {α : Type} [LinearOrder α]
 
 /-- Inserts an element into a list, counting comparisons as time cost.
-Returns a `TimeM (List α)` where the time represents the number of comparisons performed. -/
-def insert : α → List α → TimeM (List α)
+Returns a `TimeM ℕ (List α)` where the time represents the number of comparisons performed. -/
+def insert : α → List α → TimeM ℕ (List α)
   | x, [] => return [x]
   | x, y :: ys => do
-    let c ← ✓ (x ≤ y : Bool)
+    ✓ let c := (x ≤ y : Bool)
     if c then
       return (x :: y :: ys)
     else
@@ -46,8 +46,8 @@ def insert : α → List α → TimeM (List α)
       return (y :: rest)
 
 /-- Sorts a list using the insertion sort algorithm, counting comparisons as time cost.
-Returns a `TimeM (List α)` where the time represents the total number of comparisons. -/
-def insertionSort (xs : List α) : TimeM (List α) := do
+Returns a `TimeM ℕ (List α)` where the time represents the total number of comparisons. -/
+def insertionSort (xs : List α) : TimeM ℕ (List α) := do
   match xs with
   | [] => return []
   | x :: xs' => do
@@ -61,11 +61,8 @@ open List
 @[grind →]
 theorem mem_either_insert (xs : List α) (a b : α) (hz : a ∈ ⟪insert b xs⟫) : a = b ∨ a ∈ xs := by
   fun_induction insert with
-  | case1 _ => simp only [Pure.pure, pure, mem_cons, not_mem_nil, or_false] at hz; exact Or.inl hz
-  | case2 x y ys ih =>
-    simp_all only [Bind.bind, Pure.pure]
-    simp at hz
-    grind
+  | case1 _ => grind
+  | case2 x y ys ih => grind
 
 /-- A list is sorted if it satisfies the `Pairwise (· ≤ ·)` predicate. -/
 abbrev IsSorted (l : List α) : Prop := List.Pairwise (· ≤ ·) l
@@ -73,29 +70,22 @@ abbrev IsSorted (l : List α) : Prop := List.Pairwise (· ≤ ·) l
 theorem sorted_insert {x : α} {xs : List α} (hxs : IsSorted xs) : IsSorted ⟪insert x xs⟫ := by
   fun_induction insert x xs with
   | case1 _ => simp
-  | case2 x y ys ih =>
-    simp only [Bind.bind, Pure.pure]
-    grind [pairwise_cons]
+  | case2 x y ys ih => grind [pairwise_cons]
 
 theorem insertionSort_sorted (xs : List α) : IsSorted ⟪insertionSort xs⟫ := by
   fun_induction insertionSort xs with
   | case1 => simp
-  | case2 x xs ih =>
-    simp only [Bind.bind]
-    grind [sorted_insert]
+  | case2 x xs ih => grind [sorted_insert]
 
 lemma insert_perm x (xs : List α) : ⟪insert x xs⟫ ~ x :: xs := by
   fun_induction insert with
   | case1 x => simp
-  | case2 x y ys ih =>
-    simp only [Bind.bind, Pure.pure]
-    grind
+  | case2 x y ys ih => grind
 
 theorem insertionSort_perm (xs : List α) : ⟪insertionSort xs⟫ ~ xs := by
   fun_induction insertionSort xs with
   | case1 => simp
   | case2 x xs ih =>
-    simp only [Bind.bind, ret_bind]
     refine (insert_perm x (insertionSort xs).ret).trans ?_
     grind [List.Perm.cons]
 
@@ -112,31 +102,25 @@ section TimeComplexity
 theorem insert_time (x : α) (xs : List α) : (insert x xs).time ≤ xs.length := by
   fun_induction insert with
   | case1 _ => simp
-  | case2 x y ys ih =>
-    simp [Bind.bind, Pure.pure]
-    grind
+  | case2 x y ys ih => grind
 
 theorem insert_length (x : α) (xs : List α) : (insert x xs).ret.length = xs.length + 1 := by
   fun_induction insert with
   | case1 _ => simp
-  | case2 x y ys ih =>
-    simp [Bind.bind, Pure.pure]
-    grind
+  | case2 x y ys ih => grind
 
 theorem insertionSort_length (xs : List α) : (insertionSort xs).ret.length = xs.length := by
   fun_induction insertionSort xs with
   | case1 => simp
-  | case2 x xs ih =>
-    simp [Bind.bind]
-    grind [insert_length]
+  | case2 x xs ih => grind [insert_length]
 
 /-- Time complexity of `insertionSort`. -/
-theorem insertionSort_time (xs : List α) : (insertionSort xs).time ≤ xs.length * xs.length:= by
+theorem insertionSort_time (xs : List α) : (insertionSort xs).time ≤ xs.length * xs.length := by
   fun_induction insertionSort with
   | case1 => simp
   | case2 x xs ih =>
-    simp [Bind.bind]
-    grind [insert_time, insertionSort_length]
+    simp
+    grind [insertionSort_length, insert_time]
 
 end TimeComplexity
 
