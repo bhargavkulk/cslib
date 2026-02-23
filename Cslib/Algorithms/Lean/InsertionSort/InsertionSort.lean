@@ -13,12 +13,28 @@ public import Mathlib.Data.Nat.Log
 
 @[expose] public section
 
+/-!
+# Insertion Sort on a list
+
+In this file we introduce `insert` and `insertionSort` algorithms that returns a time monad
+over the list `TimeM (List α)`. The time complexity of `insertionSort` is the number of comparisons.
+
+--
+## Main results
+
+- `insertionSort_correct`: `insertionSort` permutes the list into a sorted one.
+- `insertionSort_time`:  The number of comparisons of `insertionSort` is at most `n^2`.
+
+-/
+
 set_option autoImplicit false
 
 namespace Cslib.Algorithms.Lean.TimeM
 
 variable {α : Type} [LinearOrder α]
 
+/-- Inserts an element into a list, counting comparisons as time cost.
+Returns a `TimeM (List α)` where the time represents the number of comparisons performed. -/
 def insert : α → List α → TimeM (List α)
 | x, [] => return [x]
 | x, y :: ys => do
@@ -29,6 +45,8 @@ def insert : α → List α → TimeM (List α)
     let rest ← insert x ys
     return (y :: rest)
 
+/-- Sorts a list using the insertion sort algorithm, counting comparisons as time cost.
+Returns a `TimeM (List α)` where the time represents the total number of comparisons. -/
 def insertionSort (xs : List α) : TimeM (List α) := do
   match xs with
   | [] => return []
@@ -82,6 +100,7 @@ theorem insertionSort_perm (xs : List α) : ⟪insertionSort xs⟫ ~ xs := by
     refine (insert_perm x (insertionSort xs).ret).trans ?_
     grind [List.Perm.cons]
 
+/-- Insertion Sort is functionally correct. -/
 theorem insertionSort_correct (xs : List α) :
     IsSorted ⟪insertionSort xs⟫ ∧ ⟪insertionSort xs⟫ ~ xs :=
   ⟨insertionSort_sorted xs, insertionSort_perm xs⟩
@@ -90,6 +109,7 @@ end Correctness
 
 section TimeComplexity
 
+/-- Time complexity of `insert`. -/
 theorem insert_time (x : α) (xs : List α) :
     (insert x xs).time ≤ xs.length := by
   fun_induction insert with
@@ -114,7 +134,7 @@ theorem insertionSort_length (xs : List α) :
     simp [Bind.bind]
     grind [insert_length]
 
-
+/-- Time complexity of `insertionSort`. -/
 theorem insertionSort_time (xs : List α) :
     (insertionSort xs).time ≤ xs.length * xs.length:= by
   fun_induction insertionSort with
